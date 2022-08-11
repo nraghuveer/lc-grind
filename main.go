@@ -34,7 +34,7 @@ func InitModel() model {
 
 func loadSubmissionsCmd() tea.Cmd {
 	return func() tea.Msg {
-		submissions, _ := GetAllSubmissions(time.Date(2022, time.May, 1, 0, 0, 0, 0, time.UTC))
+		submissions, _ := GetAllSubmissions(time.Date(2022, time.August, 1, 0, 0, 0, 0, time.UTC))
 		return submissionsLoadCmd{items: submissions}
 	}
 }
