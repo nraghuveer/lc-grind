@@ -32,8 +32,6 @@ type model struct {
 	loadedNotes   map[string]string
 }
 
-type progressBarTickCmd time.Time
-
 func InitModel() model {
 	return model{list: list.New([]list.Item{}, list.NewDefaultDelegate(), 0, 0), isLoadingData: true, note: "", loadedNotes: make(map[string]string), progressBar: progress.New(progress.WithDefaultGradient()), progress: 0.0, progressChan: make(chan float64)}
 }
@@ -96,11 +94,8 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.isLoadingData = false
 	case progressMsg:
 		m.progress = float64(msg)
-		return m, tea.Batch(func() tea.Msg { return progressBarTickCmd(time.Now()) }, waitForProgressUpdate(m.progressChan))
-	case progressBarTickCmd:
 		cmd := m.progressBar.SetPercent(m.progress)
-		return m, cmd
-	// FrameMsg is sent when the progress bar wants to animate itself
+		return m, tea.Batch(cmd, waitForProgressUpdate(m.progressChan))
 	case progress.FrameMsg:
 		progressModel, cmd := m.progressBar.Update(msg)
 		m.progressBar = progressModel.(progress.Model)
@@ -125,7 +120,6 @@ func (m model) View() string {
 		Padding(2).Border(lipgloss.ThickBorder(), false, false, false, true).
 		BorderBackground(lipgloss.Color("63")).
 		Render(m.note)
-	// _ := lipgloss.PlaceHorizontal(80, lipgloss.Left, note)
 	views = append(views, note)
 	return lipgloss.JoinHorizontal(lipgloss.Center, views...)
 }
