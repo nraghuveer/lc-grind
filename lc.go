@@ -80,7 +80,7 @@ func (s *submissions) getUniqueSubmissions() []submission {
 	return result
 }
 
-func GetAllSubmissions(thresholdTime time.Time) ([]submission, error) {
+func GetAllSubmissions(thresholdTime time.Time, progressChan chan<- float64) ([]submission, error) {
 	if thresholdTime.After(time.Now()) {
 		return nil, errors.New("Invalid thresholdTime, given time is in future")
 	}
@@ -100,6 +100,7 @@ func GetAllSubmissions(thresholdTime time.Time) ([]submission, error) {
 	var result []submission
 
 	for curTime.After(thresholdTime) {
+		// fmt.Println(fmt.Sprintf("Fetching -> %d", offset))
 		curSubmissions, curLastKey, err := fetchSubmissions(offset, limit, lastKey)
 		if err != nil {
 			log.Fatalln("Error while getting submissions", err.Error())
@@ -115,11 +116,14 @@ func GetAllSubmissions(thresholdTime time.Time) ([]submission, error) {
 		diff := time.Now().Sub(curTime)
 		days := (diff.Hours() / 24)
 		progress = days * (totalDays / 100)
+		progressChan <- progress / 100
+		// fmt.Println(curTime, len(curSubmissions))
+		// fmt.Println("progress inside", progress)
+		for _, sub := range result {
+			saveSubmissionRecordDB(&sub)
+		}
 	}
 
-	for _, sub := range result {
-		saveSubmissionRecordDB(&sub)
-	}
 	return result, nil
 }
 

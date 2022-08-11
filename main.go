@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/charmbracelet/bubbles/list"
-	"github.com/charmbracelet/bubbles/spinner"
+	"github.com/charmbracelet/bubbles/progress"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 )
@@ -20,28 +20,39 @@ func (i submission) Description() string { return i.Time + " Ago" }
 func (i submission) FilterValue() string { return i.Title() }
 
 type submissionsLoadCmd struct{ items []submission }
+type progressMsg float64
 
 type model struct {
 	list          list.Model
-	spinner       spinner.Model
+	progress      float64
+	progressChan  chan float64
+	progressBar   progress.Model
 	isLoadingData bool
 	note          string
 	loadedNotes   map[string]string
 }
 
+type progressBarTickCmd time.Time
+
 func InitModel() model {
-	return model{list: list.New([]list.Item{}, list.NewDefaultDelegate(), 0, 0), spinner: spinner.New(), isLoadingData: true, note: "", loadedNotes: make(map[string]string)}
+	return model{list: list.New([]list.Item{}, list.NewDefaultDelegate(), 0, 0), isLoadingData: true, note: "", loadedNotes: make(map[string]string), progressBar: progress.New(progress.WithDefaultGradient()), progress: 0.0, progressChan: make(chan float64)}
 }
 
-func loadSubmissionsCmd() tea.Cmd {
+func loadSubmissionsCmd(m *model) tea.Cmd {
 	return func() tea.Msg {
-		submissions, _ := GetAllSubmissions(time.Date(2022, time.May, 1, 0, 0, 0, 0, time.UTC))
+		submissions, _ := GetAllSubmissions(time.Date(2022, time.August, 1, 0, 0, 0, 0, time.UTC), m.progressChan)
 		return submissionsLoadCmd{items: submissions}
 	}
 }
 
+func waitForProgressUpdate(c <-chan float64) tea.Cmd {
+	return func() tea.Msg {
+		return progressMsg(<-c)
+	}
+}
+
 func (m model) Init() tea.Cmd {
-	return tea.Batch(spinner.Tick, loadSubmissionsCmd())
+	return tea.Batch(loadSubmissionsCmd(&m), waitForProgressUpdate(m.progressChan))
 }
 
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -83,9 +94,16 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		m.list.SetItems(items)
 		m.isLoadingData = false
-	case spinner.TickMsg:
-		var cmd tea.Cmd
-		m.spinner, cmd = m.spinner.Update(msg)
+	case progressMsg:
+		m.progress = float64(msg)
+		return m, tea.Batch(func() tea.Msg { return progressBarTickCmd(time.Now()) }, waitForProgressUpdate(m.progressChan))
+	case progressBarTickCmd:
+		cmd := m.progressBar.SetPercent(m.progress)
+		return m, cmd
+	// FrameMsg is sent when the progress bar wants to animate itself
+	case progress.FrameMsg:
+		progressModel, cmd := m.progressBar.Update(msg)
+		m.progressBar = progressModel.(progress.Model)
 		return m, cmd
 	}
 
@@ -97,7 +115,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 func (m model) View() string {
 	var views []string
 	if m.isLoadingData {
-		views = append(views, docStyle.Render(fmt.Sprintf("\n\n   %s Loading...\n\n", m.spinner.View())))
+		views = append(views, docStyle.Render(m.progressBar.View()))
 	} else {
 		views = append(views, docStyle.Render(m.list.View()))
 	}
@@ -119,8 +137,6 @@ func main() {
 	}
 	defer db.Close()
 	m := InitModel()
-	m.spinner.Spinner = spinner.Dot
-	m.spinner.Style = lipgloss.NewStyle().Foreground(lipgloss.Color("205"))
 	m.list.Title = "Latest Submissions"
 
 	p := tea.NewProgram(m, tea.WithAltScreen())
