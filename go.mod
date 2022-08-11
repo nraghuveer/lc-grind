@@ -12,6 +12,7 @@ require (
 	git.mills.io/prologic/bitcask v1.0.2 // indirect
 	github.com/abcum/lcp v0.0.0-20201209214815-7a3f3840be81 // indirect
 	github.com/atotto/clipboard v0.1.4 // indirect
+	github.com/charmbracelet/harmonica v0.2.0 // indirect
 	github.com/containerd/console v1.0.3 // indirect
 	github.com/gofrs/flock v0.8.0 // indirect
 	github.com/lucasb-eyer/go-colorful v1.2.0 // indirect
