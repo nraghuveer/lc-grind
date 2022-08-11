@@ -12,7 +12,8 @@ import (
 	"github.com/charmbracelet/lipgloss"
 )
 
-var docStyle = lipgloss.NewStyle().Margin(1, 2)
+// FIXME: calc proper width and make it responsive
+var docStyle = lipgloss.NewStyle().Margin(1, 2).Width(50)
 
 func (i submission) Title() string       { return i.ProblemTitle }
 func (i submission) Description() string { return i.Time + " Ago" }
@@ -101,14 +102,14 @@ func (m model) View() string {
 		views = append(views, docStyle.Render(m.list.View()))
 	}
 	note := lipgloss.NewStyle().
-		Width(75).
+		Width(50).
 		Height(m.list.Height()).
 		Padding(2).Border(lipgloss.ThickBorder(), false, false, false, true).
 		BorderBackground(lipgloss.Color("63")).
 		Render(m.note)
-	block := lipgloss.PlaceHorizontal(80, lipgloss.Left, note)
-	views = append(views, block)
-	return lipgloss.JoinHorizontal(lipgloss.Top, views...)
+	// _ := lipgloss.PlaceHorizontal(80, lipgloss.Left, note)
+	views = append(views, note)
+	return lipgloss.JoinHorizontal(lipgloss.Center, views...)
 }
 
 func main() {

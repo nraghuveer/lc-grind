@@ -84,13 +84,22 @@ func GetAllSubmissions(thresholdTime time.Time) ([]submission, error) {
 	if thresholdTime.After(time.Now()) {
 		return nil, errors.New("Invalid thresholdTime, given time is in future")
 	}
-	lastTime := time.Now()
+	// we never know how many submissions were there in a time period
+	// so give each day as step in progress
+	// if we have 150 days, each day gets an increment of 150/100
+	// so from the now the lastTime is 20 days before,
+	// set the progress values as => 20 * 100/150
+	progress := 0.0
+	diff := time.Now().Sub(thresholdTime)
+	totalDays := diff.Hours() / 24
+
+	curTime := time.Now() // time where we are right now in loading the data, we go backwards
 	offset := 0
 	limit := 20
 	lastKey := ""
 	var result []submission
 
-	for lastTime.After(thresholdTime) {
+	for curTime.After(thresholdTime) {
 		curSubmissions, curLastKey, err := fetchSubmissions(offset, limit, lastKey)
 		if err != nil {
 			log.Fatalln("Error while getting submissions", err.Error())
@@ -99,9 +108,15 @@ func GetAllSubmissions(thresholdTime time.Time) ([]submission, error) {
 		offset += len(curSubmissions)
 		result = append(result, curSubmissions...)
 		if len(curSubmissions) > 0 {
-			lastTime = time.Unix(curSubmissions[len(curSubmissions)-1].Timestamp, 0)
+			curTime = time.Unix(curSubmissions[len(curSubmissions)-1].Timestamp, 0)
 		}
+
+		// set the progress variable
+		diff := time.Now().Sub(curTime)
+		days := (diff.Hours() / 24)
+		progress = days * (totalDays / 100)
 	}
+
 	for _, sub := range result {
 		saveSubmissionRecordDB(&sub)
 	}
@@ -170,5 +185,4 @@ func saveSubmissionRecordDB(sub *submission) error {
 	// db is always initialized in the main
 	db.Put([]byte(sub.Title_slug), []byte(value))
 	return nil
-
 }
