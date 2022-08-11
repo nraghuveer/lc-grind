@@ -12,8 +12,7 @@ import (
 	"github.com/charmbracelet/lipgloss"
 )
 
-// FIXME: calc proper width and make it responsive
-var docStyle = lipgloss.NewStyle().Margin(1, 2).Width(50)
+var docStyle = lipgloss.NewStyle().Margin(1, 2)
 
 func (i submission) Title() string       { return i.ProblemTitle }
 func (i submission) Description() string { return i.Time + " Ago" }
@@ -38,7 +37,7 @@ func InitModel() model {
 
 func loadSubmissionsCmd(m *model) tea.Cmd {
 	return func() tea.Msg {
-		submissions, _ := GetAllSubmissions(time.Date(2022, time.August, 1, 0, 0, 0, 0, time.UTC), m.progressChan)
+		submissions, _ := GetAllSubmissions(time.Date(2022, time.May, 1, 0, 0, 0, 0, time.UTC), m.progressChan)
 		return submissionsLoadCmd{items: submissions}
 	}
 }
