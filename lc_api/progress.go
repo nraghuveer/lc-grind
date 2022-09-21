@@ -2,6 +2,7 @@ package lc_api
 
 import (
 	"errors"
+	"fmt"
 
 	"github.com/nraghuveer/lc-grind/protocols"
 )
@@ -19,12 +20,16 @@ type topicTag struct {
 
 type ProgressQuestion struct {
 	Id         string `json:"questionFrontendId"`
-	Title      string `json:"questionTitle"`
+	QuestionTitle      string `json:"questionTitle"`
 	URL        string `json:"questionDetailUrl"`
 	Difficulty string `json:"difficulty"`
 }
 
-func (pq *ProgressQuestion) FilterValue() string { return pq.Title }
+func (pq *ProgressQuestion) FilterValue() string { return pq.QuestionTitle }
+func (pq *ProgressQuestion) Title() string { return pq.QuestionTitle }
+func (pq *ProgressQuestion) Description() string { return pq.Difficulty }
+func (pq *ProgressQuestion) String() string { return fmt.Sprintf("%s: %s", pq.Id, pq.QuestionTitle)}
+
 
 type solvedQuestionsInfoDataItem struct {
 	TotalSolves int              `json:"totalSolves"`
@@ -44,46 +49,29 @@ type progressPage struct {
 	} `json:"data"`
 }
 
-type progressPageIterator struct {
-	curIdx    int
-	total     int
-	questions *solvedQuestionsInfo
-}
-
-func (ppi progressPageIterator) HasNext() bool { return ppi.curIdx < ppi.total-1 }
-func (ppi progressPageIterator) Next() (*ProgressQuestion, error) {
-	if !ppi.HasNext() {
-		return nil, errors.New("No items in the progress page iterator")
-	}
-	ppi.curIdx += 1
-	return &ppi.questions.Data[ppi.curIdx].Question, nil
-}
-
-func (pp *progressPage) CreateIterator() protocols.Iterator[*ProgressQuestion] {
-	return progressPageIterator{}
-}
-
 type Progress struct {
 	numPerPage     int
 	curPageNo      int
 	totalPages     int
-	totalQuestions int
-	pages          []*progressPage
+	questions []*ProgressQuestion
+	curQuestionIdx int
 }
 
 func (pc *Progress) Init() error {
-	pc.curPageNo = 0
-	pc.totalPages = 1000 // to make the first HasNexxt call happy
+	// leetcode api sends first page for pageNo=0 and second page for pageNo=2
+	pc.curPageNo = -1
+	pc.totalPages = -1
 	pc.numPerPage = 10
-	_, err := pc.FetchNext()
-	if err != nil {
+	// pc.totalPages is set by FetchNext first call
+	// we dont know how many questions there gonna be, and its not hard to estimate
+	// as of this writing, there less than 3000 questions on leetcode
+	pc.questions = make([]*ProgressQuestion, 4000)
+	pc.curQuestionIdx = -1
+	if err := pc.FetchNext(); err != nil {
 		return err
 	}
-	if len(pc.pages) <= 0 {
-		return errors.New("Failed to fetch first page from the progress")
-	}
-	pc.totalPages = pc.pages[0].Data.SolvedQuestions.TotalPages
-	pc.totalQuestions = pc.pages[0].Data.SolvedQuestions.TotalQuestions
+	// since leetcode api considers 0 and 1 as first page, increment the next to 2
+	pc.curPageNo = 1
 	return nil
 }
 
@@ -94,56 +82,43 @@ func (pc *Progress) CompletedPercentage() float32 {
 	return (float32(pc.curPageNo) / float32(pc.totalPages)) * 100.0
 }
 
-func (pc *Progress) HasNext() bool { return pc.curPageNo <= pc.totalPages }
+func (pc *Progress) HasNext() bool { return pc.totalPages == -1 || pc.curPageNo <= pc.totalPages }
 
-func (pc *Progress) FetchNext() (*progressPage, error) {
+func (pc *Progress) FetchNext() ( error) {
 	pc.curPageNo += 1
 	lcQueries := GetLcQueries()
 	if !pc.HasNext() {
-		return nil, errors.New("No Pages to fetch from progress")
+		return errors.New("no pages to fetch from progress")
 	}
 	nextPage := &progressPage{}
 	if err := makeGraphqlRequest(progressListQueryVariables{PageNo: pc.curPageNo, NumPerPage: pc.numPerPage, Filters: struct{}{}}, nextPage, "progressList", lcQueries.PROGRESS_LIST_QUERY); err != nil {
-		return nil, err
+		return err
 	}
-	pc.pages = append(pc.pages, nextPage)
-	return nextPage, nil
+	pc.totalPages = nextPage.Data.SolvedQuestions.TotalPages
+	pc.totalPages = 4 // FIXME: for testing, since loading everything is expensive
+	for _, questionItem := range nextPage.Data.SolvedQuestions.Data {
+		pc.curQuestionIdx += 1
+		curQuestion := questionItem.Question
+		pc.questions[pc.curQuestionIdx] = &curQuestion
+	}
+	return nil
 }
 
-// Implements protocols.Iterator
+// Implements Aggregate[*ProgressQuestion]
+func (p *Progress) CreateIterator() (protocols.Iterator[*ProgressQuestion]) {
+	return &ProgressIterator{curIdx: -1, total: p.curQuestionIdx + 1, elements: p.questions}
+}
+
 type ProgressIterator struct {
-	curIdx   int // we have read till curIdx
-	totalLen int
-	iters    []protocols.Iterator[*ProgressQuestion]
+	curIdx int // the idx of item that is just served by the iterator
+	total int
+	elements []*ProgressQuestion
 }
 
-func (pi ProgressIterator) HasNext() bool {
-	// assume the curIdx is always on the right index to read now
-	if pi.curIdx >= pi.totalLen {
-		return false
-	}
-	// If on the last iter
-	if pi.curIdx == pi.totalLen-1 && !pi.iters[pi.curIdx].HasNext() {
-		return false
-	}
-	if !pi.iters[pi.curIdx].HasNext() {
-		pi.curIdx += 1
-		return pi.HasNext()
-	}
-	return true
-}
-func (pi ProgressIterator) Next() (*ProgressQuestion, error) {
-	if !pi.HasNext() {
-		return nil, errors.New("No items to iter")
-	}
-	// We are not on the last iter
-	return pi.iters[pi.curIdx].Next()
-}
+func (pi *ProgressIterator) HasNext() bool { return pi.curIdx < pi.total - 1 }
 
-func (p Progress) CreateIterator() protocols.Iterator[*ProgressQuestion] {
-	iters := make([]protocols.Iterator[*ProgressQuestion], len(p.pages))
-	for i := 0; i < len(p.pages); i++ {
-		iters[i] = p.pages[i].CreateIterator()
-	}
-	return ProgressIterator{curIdx: -1, iters: iters, totalLen: len(iters)}
+func (pi *ProgressIterator) Next() (*ProgressQuestion, error) {
+	if !pi.HasNext() { return nil, errors.New("No more items in the progress iter.")}
+	pi.curIdx += 1
+	return pi.elements[pi.curIdx], nil
 }

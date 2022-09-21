@@ -15,7 +15,7 @@ import (
 
 var docStyle = lipgloss.NewStyle().Margin(1, 2)
 
-type progressLoadCmd struct{ items []*lc.ProgressQuestion }
+type progressLoadCmd struct { items []*lc.ProgressQuestion }
 type progressMsg float32
 
 type model struct {
@@ -74,7 +74,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.list, cmd = m.list.Update(msg)
 
 			curQuestion, ok := m.list.Items()[m.list.Index()].(*lc.ProgressQuestion)
-			note, noteOk := m.loadedNotes[curQuestion.Title]
+			note, noteOk := m.loadedNotes[curQuestion.QuestionTitle]
 			if ok && noteOk {
 				m.note = note
 			} else {
@@ -84,10 +84,10 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "enter":
 			curQuestion, ok := m.list.Items()[m.list.Index()].(*lc.ProgressQuestion)
 			if ok {
-				note, ok := m.loadedNotes[curQuestion.Title]
+				note, ok := m.loadedNotes[curQuestion.QuestionTitle]
 				if !ok {
-					note = lc.GetNote(curQuestion.Title)
-					m.loadedNotes[curQuestion.Title] = note
+					note = lc.GetNote(curQuestion.QuestionTitle)
+					m.loadedNotes[curQuestion.QuestionTitle] = note
 				}
 				m.note = note
 			}
@@ -140,8 +140,6 @@ func main() {
 		log.Fatalln("Failed to create db instance", err.Error())
 	}
 	defer db.Close()
-	progress := lc.Progress{}
-	progress.Init()
 	m := InitModel()
 	m.list.Title = "Latest Submissions"
 
