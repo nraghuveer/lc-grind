@@ -34,7 +34,7 @@ func InitModel() model {
 
 func fetchProgress(m *model) tea.Cmd {
 	return func() tea.Msg {
-		progress := lc_api.Progress{}
+		progress := &lc_api.Progress{}
 		err := progress.Init()
 		if err != nil {
 			return err

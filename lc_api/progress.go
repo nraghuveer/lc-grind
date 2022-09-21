@@ -7,9 +7,9 @@ import (
 )
 
 type progressListQueryVariables struct {
-	filters    map[string]string
-	pageNo     int
-	numPerPage int
+	Filters    interface{} `json:"filters"`
+	PageNo     int         `json:"pageNo"`
+	NumPerPage int         `json:"numPerPage"`
 }
 
 type topicTag struct {
@@ -71,7 +71,7 @@ type Progress struct {
 	pages          []*progressPage
 }
 
-func (pc Progress) Init() error {
+func (pc *Progress) Init() error {
 	pc.curPageNo = 0
 	pc.totalPages = 1000 // to make the first HasNexxt call happy
 	pc.numPerPage = 10
@@ -87,29 +87,26 @@ func (pc Progress) Init() error {
 	return nil
 }
 
-func (pc Progress) CompletedPercentage() float32 {
+func (pc *Progress) CompletedPercentage() float32 {
 	if pc.curPageNo >= pc.totalPages {
 		return 100.0
 	}
 	return (float32(pc.curPageNo) / float32(pc.totalPages)) * 100.0
 }
 
-func (pc Progress) HasNext() bool { return pc.curPageNo <= pc.totalPages }
+func (pc *Progress) HasNext() bool { return pc.curPageNo <= pc.totalPages }
 
-func (pc Progress) addNewPage(page *progressPage) { pc.pages = append(pc.pages, page) }
-
-func (pc Progress) FetchNext() (*progressPage, error) {
+func (pc *Progress) FetchNext() (*progressPage, error) {
 	pc.curPageNo += 1
 	lcQueries := GetLcQueries()
 	if !pc.HasNext() {
 		return nil, errors.New("No Pages to fetch from progress")
 	}
 	nextPage := &progressPage{}
-	err := makeGraphqlRequest(progressListQueryVariables{pageNo: pc.curPageNo, numPerPage: pc.numPerPage, filters: make(map[string]string)}, nextPage, "progressList", lcQueries.PROGRESS_LIST_QUERY)
-	if err != nil {
+	if err := makeGraphqlRequest(progressListQueryVariables{PageNo: pc.curPageNo, NumPerPage: pc.numPerPage, Filters: struct{}{}}, nextPage, "progressList", lcQueries.PROGRESS_LIST_QUERY); err != nil {
 		return nil, err
 	}
-	pc.addNewPage(nextPage)
+	pc.pages = append(pc.pages, nextPage)
 	return nextPage, nil
 }
 

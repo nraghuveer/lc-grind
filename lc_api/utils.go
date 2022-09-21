@@ -8,9 +8,9 @@ import (
 )
 
 type graphqlPayload[T any] struct {
-	OperationName string
-	Variables     T
-	Query         string
+	Query         string `json:"query"`
+	Variables     T      `json:"variables"`
+	OperationName string `json:"operationName"`
 }
 
 func makeGraphqlRequest[GQLVariable any, Result any](variables GQLVariable, result *Result, gqlOperationName string, gqlQuery string) error {
@@ -19,7 +19,7 @@ func makeGraphqlRequest[GQLVariable any, Result any](variables GQLVariable, resu
 	lcQueries := GetLcQueries()
 	payload := graphqlPayload[GQLVariable]{Query: gqlQuery, OperationName: gqlOperationName, Variables: variables}
 	client := http.Client{}
-	requestBody, err := json.Marshal(payload)
+	requestBody, err := json.Marshal(&payload)
 	if err != nil {
 		return err
 	}
@@ -30,10 +30,11 @@ func makeGraphqlRequest[GQLVariable any, Result any](variables GQLVariable, resu
 	request.Header.Set("Content-Type", "application/json")
 	request.Header.Set("x-csrftoken", lcConfig.CSRF)
 	request.Header.Set("csrftoken", lcConfig.CSRF)
-	request.Header.Set("Referer", "https://leetcode.com")
+	request.Header.Set("Referer", "https://leetcode.com/progress/")
 	cookie := fmt.Sprintf("csrftoken=%s; LEETCODE_SESSION=%s", lcConfig.CSRF, lcConfig.LC_SESSION)
 	request.Header.Set("cookie", cookie)
 	resp, err := client.Do(request)
+
 	if err != nil {
 		return err
 	}
