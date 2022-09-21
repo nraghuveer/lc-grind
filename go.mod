@@ -1,4 +1,4 @@
-module lc-grind/m
+module github.com/nraghuveer/lc-grind
 
 go 1.18
 
@@ -12,6 +12,7 @@ require (
 	git.mills.io/prologic/bitcask v1.0.2 // indirect
 	github.com/abcum/lcp v0.0.0-20201209214815-7a3f3840be81 // indirect
 	github.com/atotto/clipboard v0.1.4 // indirect
+	github.com/charmbracelet/harmonica v0.2.0 // indirect
 	github.com/containerd/console v1.0.3 // indirect
 	github.com/gofrs/flock v0.8.0 // indirect
 	github.com/lucasb-eyer/go-colorful v1.2.0 // indirect
@@ -29,4 +30,5 @@ require (
 	golang.org/x/exp v0.0.0-20200228211341-fcea875c7e85 // indirect
 	golang.org/x/sys v0.0.0-20220209214540-3681064d5158 // indirect
 	golang.org/x/term v0.0.0-20210927222741-03fcf44c2211 // indirect
+	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
