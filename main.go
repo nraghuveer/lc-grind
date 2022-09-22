@@ -74,7 +74,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.list, cmd = m.list.Update(msg)
 
 			curQuestion, ok := m.list.Items()[m.list.Index()].(*lc.ProgressQuestion)
-			note, noteOk := m.loadedNotes[curQuestion.QuestionTitle]
+			note, noteOk := m.loadedNotes[curQuestion.ParseTitleSlug()]
 			if ok && noteOk {
 				m.note = note
 			} else {
@@ -84,10 +84,11 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "enter":
 			curQuestion, ok := m.list.Items()[m.list.Index()].(*lc.ProgressQuestion)
 			if ok {
+				// FIXME: we need title slug not the title
 				note, ok := m.loadedNotes[curQuestion.QuestionTitle]
 				if !ok {
-					note = lc.GetNote(curQuestion.QuestionTitle)
-					m.loadedNotes[curQuestion.QuestionTitle] = note
+					note, _ = lc.GetNote(curQuestion.ParseTitleSlug())
+					m.loadedNotes[curQuestion.ParseTitleSlug()] = note
 				}
 				m.note = note
 			}
@@ -141,7 +142,7 @@ func main() {
 	}
 	defer db.Close()
 	m := InitModel()
-	m.list.Title = "Latest Submissions"
+	m.list.Title = "Progress"
 
 	p := tea.NewProgram(m, tea.WithAltScreen())
 

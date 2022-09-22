@@ -1,13 +1,8 @@
 package lc_api
 
+
 type noteQueryVariables struct {
 	TitleSlug string `json:"titleSlug"`
-}
-
-type noteQueryPayload struct {
-	OperationName string             `json:"operationName"`
-	Variables     noteQueryVariables `json:"variables"`
-	Query         string             `json:"query"`
 }
 
 type noteQueryResponse struct {
@@ -19,4 +14,13 @@ type noteQueryResponse struct {
 	} `json:"data"`
 }
 
-func GetNote(title string) string { return "xyz" }
+
+func GetNote(title string) (string, error) {
+	lcQueries := GetLcQueries()
+	variables := noteQueryVariables{TitleSlug: title}
+	result := noteQueryResponse{}
+	if err := makeGraphqlRequest(variables, &result, "QuestionNote", lcQueries.NOTE_QUERY); err != nil {
+		return "", err
+	}
+	return result.Data.Question.Note, nil
+}

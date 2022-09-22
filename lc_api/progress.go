@@ -3,6 +3,7 @@ package lc_api
 import (
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/nraghuveer/lc-grind/protocols"
 )
@@ -23,6 +24,11 @@ type ProgressQuestion struct {
 	QuestionTitle      string `json:"questionTitle"`
 	URL        string `json:"questionDetailUrl"`
 	Difficulty string `json:"difficulty"`
+}
+
+func (p ProgressQuestion) ParseTitleSlug() string {
+	parts := strings.Split(p.URL, "/")
+	return parts[2]
 }
 
 func (pq *ProgressQuestion) FilterValue() string { return pq.QuestionTitle }
