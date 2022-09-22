@@ -11,11 +11,12 @@ import (
 	"github.com/charmbracelet/lipgloss"
 	"github.com/nraghuveer/lc-grind/lc_api"
 	lc "github.com/nraghuveer/lc-grind/lc_api"
+	utils "github.com/nraghuveer/lc-grind/app"
 )
 
 var docStyle = lipgloss.NewStyle().Margin(1, 2)
 
-type progressLoadCmd struct { items []*lc.ProgressQuestion }
+type progressLoadCmd struct{ items []*lc.ProgressQuestion }
 type progressMsg float32
 
 type model struct {
@@ -81,6 +82,13 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.note = ""
 			}
 			return m, cmd
+		case "ctrl+enter":
+			curQuestion, ok := m.list.Items()[m.list.Index()].(*lc.ProgressQuestion)
+			if ok {
+				if err := utils.OpenUrlInBrowser(curQuestion.URL); err != nil {
+					log.Printf("Failed to open the url in browser - %s", err)
+				}
+			}
 		case "enter":
 			curQuestion, ok := m.list.Items()[m.list.Index()].(*lc.ProgressQuestion)
 			if ok {
@@ -138,7 +146,7 @@ func (m model) View() string {
 func main() {
 	db, err := GetDB()
 	if err != nil {
-		log.Fatalln("Failed to create db instance", err.Error())
+		log.Fatalln("Faliled to create db instance", err.Error())
 	}
 	defer db.Close()
 	m := InitModel()
