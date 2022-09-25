@@ -1,3 +1,5 @@
 
 *.vim
 m
+config.yaml
+.DS_Store
