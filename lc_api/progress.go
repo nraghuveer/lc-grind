@@ -9,9 +9,9 @@ import (
 )
 
 type progressListQueryVariables struct {
-	Filters    interface{} `json:"filters"`
 	PageNo     int         `json:"pageNo"`
 	NumPerPage int         `json:"numPerPage"`
+	Filters interface{}  `json:"filters"`
 }
 
 type topicTag struct {
@@ -64,20 +64,14 @@ type Progress struct {
 }
 
 func (pc *Progress) Init() error {
-	// leetcode api sends first page for pageNo=0 and second page for pageNo=2
-	pc.curPageNo = -1
+	pc.curPageNo = 2
 	pc.totalPages = -1
 	pc.numPerPage = 10
-	// pc.totalPages is set by FetchNext first call
-	// we dont know how many questions there gonna be, and its not hard to estimate
-	// as of this writing, there less than 3000 questions on leetcode
 	pc.questions = make([]*ProgressQuestion, 4000)
 	pc.curQuestionIdx = -1
 	if err := pc.FetchNext(); err != nil {
 		return err
 	}
-	// since leetcode api considers 0 and 1 as first page, increment the next to 2
-	pc.curPageNo = 1
 	return nil
 }
 
@@ -88,20 +82,17 @@ func (pc *Progress) CompletedPercentage() float32 {
 	return (float32(pc.curPageNo) / float32(pc.totalPages)) * 100.0
 }
 
-func (pc *Progress) HasNext() bool { return pc.totalPages == -1 || pc.curPageNo <= pc.totalPages }
+func (pc *Progress) HasNext() bool { return pc.curPageNo <= pc.totalPages }
 
 func (pc *Progress) FetchNext() ( error) {
 	pc.curPageNo += 1
 	lcQueries := GetLcQueries()
-	if !pc.HasNext() {
-		return errors.New("no pages to fetch from progress")
-	}
 	nextPage := &progressPage{}
 	if err := makeGraphqlRequest(progressListQueryVariables{PageNo: pc.curPageNo, NumPerPage: pc.numPerPage, Filters: struct{}{}}, nextPage, "progressList", lcQueries.PROGRESS_LIST_QUERY); err != nil {
 		return err
 	}
 	pc.totalPages = nextPage.Data.SolvedQuestions.TotalPages
-	pc.totalPages = 4 // FIXME: for testing, since loading everything is expensive
+	pc.totalPages = 5 // FIXME: for testing, since loading everything is expensive
 	for _, questionItem := range nextPage.Data.SolvedQuestions.Data {
 		pc.curQuestionIdx += 1
 		curQuestion := questionItem.Question

@@ -1,6 +1,7 @@
 package lc_api
 
 import (
+	// "io"
 	"bytes"
 	"encoding/json"
 	"fmt"
@@ -15,8 +16,8 @@ type graphqlPayload[T any] struct {
 
 func makeGraphqlRequest[GQLVariable any, Result any](variables GQLVariable, result *Result, gqlOperationName string, gqlQuery string) error {
 	lcConfig := GetLcConfig()
-
 	lcQueries := GetLcQueries()
+
 	payload := graphqlPayload[GQLVariable]{Query: gqlQuery, OperationName: gqlOperationName, Variables: variables}
 	client := http.Client{}
 	requestBody, err := json.Marshal(&payload)
@@ -34,7 +35,11 @@ func makeGraphqlRequest[GQLVariable any, Result any](variables GQLVariable, resu
 	cookie := fmt.Sprintf("csrftoken=%s; LEETCODE_SESSION=%s", lcConfig.CSRF, lcConfig.LC_SESSION)
 	request.Header.Set("cookie", cookie)
 	resp, err := client.Do(request)
-
+	// t, err := io.ReadAll(resp.Body)
+	// fmt.Println(string(t))
+	if err != nil {
+		return err
+	}
 	if err != nil {
 		return err
 	}
