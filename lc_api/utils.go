@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"time"
 )
 
 type graphqlPayload[T any] struct {
@@ -47,3 +48,20 @@ func makeGraphqlRequest[GQLVariable any, Result any](variables GQLVariable, resu
 	json.NewDecoder(resp.Body).Decode(result)
 	return nil
 }
+
+
+func timestampToWord(ts string) string {
+	t, err := time.Parse(time.RFC3339, ts)
+	if err != nil {
+		_ = fmt.Errorf(err.Error())
+		return ""
+	}
+	diff := time.Now().Sub(t).Hours() / 24
+	diffInt := int (diff)
+	switch diffInt {
+	case 0: return "Today"
+	case 1: return "Yesterday"
+	default: return fmt.Sprintf("%d days ago", diffInt)
+	}
+}
+

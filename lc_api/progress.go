@@ -11,7 +11,7 @@ import (
 type progressListQueryVariables struct {
 	PageNo     int         `json:"pageNo"`
 	NumPerPage int         `json:"numPerPage"`
-	Filters interface{}  `json:"filters"`
+	Filters    interface{} `json:"filters"`
 }
 
 type topicTag struct {
@@ -20,10 +20,11 @@ type topicTag struct {
 }
 
 type ProgressQuestion struct {
-	Id         string `json:"questionFrontendId"`
-	QuestionTitle      string `json:"questionTitle"`
-	URL        string `json:"questionDetailUrl"`
-	Difficulty string `json:"difficulty"`
+	Id            string `json:"questionFrontendId"`
+	QuestionTitle string `json:"questionTitle"`
+	URL           string `json:"questionDetailUrl"`
+	Difficulty    string `json:"difficulty"`
+	LastSolved string
 }
 
 func (p ProgressQuestion) ParseTitleSlug() string {
@@ -32,14 +33,17 @@ func (p ProgressQuestion) ParseTitleSlug() string {
 }
 
 func (pq *ProgressQuestion) FilterValue() string { return pq.QuestionTitle }
-func (pq *ProgressQuestion) Title() string { return pq.QuestionTitle }
-func (pq *ProgressQuestion) Description() string { return pq.Difficulty }
-func (pq *ProgressQuestion) String() string { return fmt.Sprintf("%s: %s", pq.Id, pq.QuestionTitle)}
-
+func (pq *ProgressQuestion) Title() string       { return pq.QuestionTitle }
+func (pq *ProgressQuestion) Description() string { return fmt.Sprintf("%s | %s", pq.Difficulty, timestampToWord(pq.LastSolved)) }
+func (pq *ProgressQuestion) String() string      { return fmt.Sprintf("%s: %s", pq.Id, pq.QuestionTitle) }
 
 type solvedQuestionsInfoDataItem struct {
 	TotalSolves int              `json:"totalSolves"`
 	Question    ProgressQuestion `json:"question"`
+	LastAcSession struct {
+		Time string `json:"time"`
+		WrongAttempts int `json:"wrongAttempts"`
+	} `json:"lastAcSession"`
 }
 
 type solvedQuestionsInfo struct {
@@ -59,12 +63,12 @@ type Progress struct {
 	numPerPage     int
 	curPageNo      int
 	totalPages     int
-	questions []*ProgressQuestion
+	questions      []*ProgressQuestion
 	curQuestionIdx int
 }
 
 func (pc *Progress) Init() error {
-	pc.curPageNo = 2
+	pc.curPageNo = 0
 	pc.totalPages = -1
 	pc.numPerPage = 10
 	pc.questions = make([]*ProgressQuestion, 4000)
@@ -84,7 +88,7 @@ func (pc *Progress) CompletedPercentage() float32 {
 
 func (pc *Progress) HasNext() bool { return pc.curPageNo <= pc.totalPages }
 
-func (pc *Progress) FetchNext() ( error) {
+func (pc *Progress) FetchNext() error {
 	pc.curPageNo += 1
 	lcQueries := GetLcQueries()
 	nextPage := &progressPage{}
@@ -96,26 +100,29 @@ func (pc *Progress) FetchNext() ( error) {
 	for _, questionItem := range nextPage.Data.SolvedQuestions.Data {
 		pc.curQuestionIdx += 1
 		curQuestion := questionItem.Question
+		curQuestion.LastSolved = questionItem.LastAcSession.Time
 		pc.questions[pc.curQuestionIdx] = &curQuestion
 	}
 	return nil
 }
 
 // Implements Aggregate[*ProgressQuestion]
-func (p *Progress) CreateIterator() (protocols.Iterator[*ProgressQuestion]) {
+func (p *Progress) CreateIterator() protocols.Iterator[*ProgressQuestion] {
 	return &ProgressIterator{curIdx: -1, total: p.curQuestionIdx + 1, elements: p.questions}
 }
 
 type ProgressIterator struct {
-	curIdx int // the idx of item that is just served by the iterator
-	total int
+	curIdx   int // the idx of item that is just served by the iterator
+	total    int
 	elements []*ProgressQuestion
 }
 
-func (pi *ProgressIterator) HasNext() bool { return pi.curIdx < pi.total - 1 }
+func (pi *ProgressIterator) HasNext() bool { return pi.curIdx < pi.total-1 }
 
 func (pi *ProgressIterator) Next() (*ProgressQuestion, error) {
-	if !pi.HasNext() { return nil, errors.New("No more items in the progress iter.")}
+	if !pi.HasNext() {
+		return nil, errors.New("no more items in the progress iter")
+	}
 	pi.curIdx += 1
 	return pi.elements[pi.curIdx], nil
 }
