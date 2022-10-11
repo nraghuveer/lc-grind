@@ -1,6 +1,5 @@
 package lc_api
 
-
 type noteQueryVariables struct {
 	TitleSlug string `json:"titleSlug"`
 }
@@ -13,7 +12,6 @@ type noteQueryResponse struct {
 		} `json:"question"`
 	} `json:"data"`
 }
-
 
 func GetNote(title string) (string, error) {
 	lcQueries := GetLcQueries()
