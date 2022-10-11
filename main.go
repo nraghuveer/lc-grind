@@ -9,17 +9,21 @@ import (
 	"github.com/charmbracelet/bubbles/progress"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	utils "github.com/nraghuveer/lc-grind/app"
 	"github.com/nraghuveer/lc-grind/lc_api"
 	lc "github.com/nraghuveer/lc-grind/lc_api"
-	utils "github.com/nraghuveer/lc-grind/app"
 )
 
 var docStyle = lipgloss.NewStyle().Margin(1, 2)
+var progressListStyle = docStyle.Border(lipgloss.RoundedBorder()).BorderForeground((lipgloss.Color("238")))
+var noteStyle = docStyle.Border(lipgloss.RoundedBorder()).BorderForeground(lipgloss.Color("238"))
 
 type progressLoadCmd struct{ items []*lc.ProgressQuestion }
 type progressMsg float32
 
 type model struct {
+	width         int
+	height        int
 	list          list.Model
 	progress      float32
 	progressChan  chan float32
@@ -102,8 +106,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 		}
 	case tea.WindowSizeMsg:
-		h, v := docStyle.GetFrameSize()
-		m.list.SetSize(msg.Width-h, msg.Height-v)
+		m.height = msg.Height
+		m.width = msg.Width
+
 	case progressLoadCmd:
 		var items []list.Item
 		for _, sub := range msg.items {
@@ -128,17 +133,19 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 func (m model) View() string {
 	var views []string
+
+	lh, lw := docStyle.GetFrameSize()
+	m.list.SetSize(m.width - 50 - lw, m.height - lh)
+	progressListStyle = progressListStyle.Width(m.width - 50 - lh).Height(m.height-lw)
+	noteStyle = noteStyle.Width(50).Height(m.height - lh)
+
 	if m.isLoadingData {
-		views = append(views, docStyle.Render(m.progressBar.View()))
+		views = append(views, progressListStyle.Render(m.progressBar.View()))
 	} else {
-		views = append(views, docStyle.Render(m.list.View()))
+		views = append(views, progressListStyle.Render(m.list.View()))
 	}
-	note := lipgloss.NewStyle().
-		Width(50).
-		Height(m.list.Height()).
-		Padding(2).Border(lipgloss.ThickBorder(), false, false, false, true).
-		BorderBackground(lipgloss.Color("63")).
-		Render(m.note)
+	note := noteStyle.Render(m.note)
+
 	views = append(views, note)
 	return lipgloss.JoinHorizontal(lipgloss.Center, views...)
 }
