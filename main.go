@@ -15,8 +15,9 @@ import (
 )
 
 var docStyle = lipgloss.NewStyle().Margin(1, 2)
-var progressListStyle = docStyle.Border(lipgloss.RoundedBorder()).BorderForeground((lipgloss.Color("238")))
-var noteStyle = docStyle.Border(lipgloss.RoundedBorder()).BorderForeground(lipgloss.Color("238"))
+var progressListStyle = lipgloss.NewStyle().Inherit(docStyle).Border(lipgloss.RoundedBorder()).BorderForeground((lipgloss.Color("238")))
+var noteHeadingStyle = lipgloss.NewStyle().Align(lipgloss.Center).Foreground(lipgloss.Color("#FAFAFA")).Background(lipgloss.Color("#7D56F4"))
+var noteStyle = lipgloss.NewStyle().Inherit(docStyle).Border(lipgloss.RoundedBorder()).BorderForeground(lipgloss.Color("238"))
 
 type progressLoadCmd struct{ items []*lc.ProgressQuestion }
 type progressMsg float32
@@ -31,6 +32,9 @@ type model struct {
 	isLoadingData bool
 	note          string
 	loadedNotes   map[string]string
+	Tabs []string
+	TabContent []string
+	activeTab int
 }
 
 func InitModel() model {
@@ -104,7 +108,14 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 				m.note = note
 			}
+			case "ctrl+h", "right":
+				m.activeTab = min(m.activeTab+1, len(m.Tabs)-1)
+				return m, nil
+			case "ctrl+l", "left":
+				m.activeTab = max(m.activeTab-1, 0)
+				return m, nil
 		}
+
 	case tea.WindowSizeMsg:
 		m.height = msg.Height
 		m.width = msg.Width
@@ -135,16 +146,17 @@ func (m model) View() string {
 	var views []string
 
 	lh, lw := docStyle.GetFrameSize()
-	m.list.SetSize(m.width - 50 - lw, m.height - lh)
-	progressListStyle = progressListStyle.Width(m.width - 50 - lh).Height(m.height-lw)
-	noteStyle = noteStyle.Width(50).Height(m.height - lh)
+	m.list.SetSize((m.width*2/3)-lw, m.height-lh)
+	progressListStyle = progressListStyle.Width((m.width * 2 / 3) - lw).Height(m.height - lh)
+	noteStyle = noteStyle.Width((m.width * 1 / 3) - lw).Height(m.height - lh)
 
 	if m.isLoadingData {
 		views = append(views, progressListStyle.Render(m.progressBar.View()))
 	} else {
 		views = append(views, progressListStyle.Render(m.list.View()))
 	}
-	note := noteStyle.Render(m.note)
+	noteHeading := noteHeadingStyle.Padding(0,1,0,1).Margin(0,0,3,1).Align(lipgloss.Center).Render("Notes")
+	note := noteStyle.Render(noteHeading + "\n\n" + m.note)
 
 	views = append(views, note)
 	return lipgloss.JoinHorizontal(lipgloss.Center, views...)
@@ -165,4 +177,18 @@ func main() {
 		fmt.Println("Error running program:", err)
 		os.Exit(1)
 	}
+}
+
+func max(a, b int) int {
+	if a > b {
+		return a
+	}
+	return b
+}
+
+func min(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
 }
